@@ -1,34 +1,72 @@
 const mongoose = require('mongoose');
 const { toJSON } = require('./plugins');
 
-const ItemSchema = new mongoose.Schema({
-  description: String,
-  hsnSac: String,
-  quantity: Number,
-  unit: String,
-  rate: Number,
-  gstRate: Number,
-});
-
-const InvoiceSchema = new mongoose.Schema(
+const invoiceItemSchema = mongoose.Schema(
   {
-    estimateNo: { type: String, required: true, unique: true },
-    date: String,
-    placeOfSupply: String,
-    customer: {
-      name: String,
-      address: String,
-      mobile: String,
-      gstn: String,
-    },
-    items: [ItemSchema],
+    item: { type: String, required: true, trim: true },
+    description: { type: String, trim: true },
+    qty: { type: Number, required: true, min: 1 },
+    rate: { type: Number, required: true, min: 0 },
+    taxRate: { type: Number, default: 18 },
+
+    taxableAmount: { type: Number, default: 0 },
+    sgst: { type: Number, default: 0 },
+    cgst: { type: Number, default: 0 },
+    igst: { type: Number, default: 0 },
+    total: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const invoiceSchema = mongoose.Schema(
+  {
+    customerName: { type: String, required: true, trim: true },
+    invoiceNo: { type: String, required: true, unique: true },
+    orderNo: { type: String, trim: true },
+    date: { type: Date, required: true },
+    state: { type: String, required: true, trim: true },
+
+    items: [invoiceItemSchema],
+
+    subTotal: { type: Number, default: 0 },
+    totalTax: { type: Number, default: 0 },
+    grandTotal: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
-InvoiceSchema.plugin(toJSON);
-/**
- * @typedef Invoice
- */
-const Invoice = mongoose.model("Invoice", InvoiceSchema);
-module.exports = Invoice;
 
+// 🔥 GST Calculation (same as Estimate)
+invoiceSchema.pre('save', function (next) {
+  let subTotal = 0;
+  let totalTax = 0;
+
+  this.items.forEach((item) => {
+    item.taxableAmount = item.qty * item.rate;
+    const taxAmount = (item.taxableAmount * item.taxRate) / 100;
+
+    if (this.state.toLowerCase() === 'gujarat') {
+      item.sgst = taxAmount / 2;
+      item.cgst = taxAmount / 2;
+      item.igst = 0;
+    } else {
+      item.igst = taxAmount;
+      item.sgst = 0;
+      item.cgst = 0;
+    }
+
+    item.total = item.taxableAmount + taxAmount;
+    subTotal += item.taxableAmount;
+    totalTax += taxAmount;
+  });
+
+  this.subTotal = subTotal;
+  this.totalTax = totalTax;
+  this.grandTotal = subTotal + totalTax;
+
+  next();
+});
+
+invoiceSchema.plugin(toJSON);
+
+const Invoice = mongoose.model('Invoice', invoiceSchema);
+module.exports = Invoice;

@@ -1,174 +1,137 @@
+const Joi = require('joi');
 const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
-const Joi = require('joi');
-const Invoice = require('../models/invoice.model');
+const { Invoice } = require('../models');
 
-// POST to add new category (optional, for admin use)
 const createInvoice = {
-    validation: {
-        body: Joi.object().keys({
-            estimateNo: Joi.string().required(),
-            date: Joi.string().required(),
-            placeOfSupply: Joi.string().required(),
-            customer: Joi.object({
-                name: Joi.string().required(),
-                address: Joi.string().allow(""),
-                mobile: Joi.string().required(),
-                gstn: Joi.string().allow(""),
-            }),
-            items: Joi.array()
-                .items(
-                    Joi.object({
-                        description: Joi.string().required(),
-                        hsnSac: Joi.string().allow(""),
-                        quantity: Joi.number().required(),
-                        unit: Joi.string().required(),
-                        rate: Joi.number().required(),
-                        gstRate: Joi.number().required(),
-                    })
-                )
-                .min(1)
-                .required(),
-        }),
-    },
+  validation: {
+    body: Joi.object().keys({
+      customerName: Joi.string().required(),
+      invoiceNo: Joi.string().required(),
+      orderNo: Joi.string().allow('', null),
+      date: Joi.date().required(),
+      state: Joi.string().required(),
+      items: Joi.array()
+        .items(
+          Joi.object({
+            item: Joi.string().required(),
+            description: Joi.string().allow('', null),
+            qty: Joi.number().positive().required(),
+            rate: Joi.number().positive().required(),
+            taxRate: Joi.number().default(18),
+          })
+        )
+        .min(1)
+        .required(),
+    }),
+  },
 
-    handler: async (req, res) => {
-        try {
-            const invoice = await Invoice.create(req.body);
-           
-            return res.status(201).json({
-                success: true,
-                message: "Invoice created successfully!",
-                data: invoice
-            });
-        } catch (error) {
-            return res.status(500).json({
-                success: false,
-                message: "Failed to create live course",
-                error: error.message,
-            });
-        }
+  handler: async (req, res) => {
+    // 🔍 DUPLICATE CHECK
+    const exist = await Invoice.findOne({ invoiceNo: req.body.invoiceNo });
+    if (exist) {
+      throw new ApiError(400, 'Invoice number already exists');
     }
+console.log("req.body********",req.body);
+
+    // ✅ CREATE
+    const invoice = await Invoice.create(req.body);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Invoice created successfully',
+      data: invoice,
+    });
+  },
 };
 
-// ✅ UPDATE FAQ
-const updateFaq = {
-    validation: {
-        body: Joi.object().keys({
-            title: Joi.string().trim().required(),
-            description: Joi.string().trim().required(),
-        }),
-    },
+const updateInvoice = {
+  validation: {
+    params: Joi.object().keys({ id: Joi.string().required() }),
+    body: Joi.object().keys({
+      customerName: Joi.string().required(),
+      invoiceNo: Joi.string().required(),
+      orderNo: Joi.string().allow('', null),
+      date: Joi.date().required(),
+      state: Joi.string().required(),
+      items: Joi.array().min(1).required(),
+    }),
+  },
 
-    handler: async (req, res) => {
-        try {
-            const { _id } = req.params;
-            const updates = req.body;
+  handler: async (req, res) => {
+    const { id } = req.params;
 
-            const faq = await Invoice.findByIdAndUpdate(_id, updates, { new: true });
+    const invoice = await Invoice.findById(id);
+    if (!invoice) throw new ApiError(404, 'Invoice not found');
 
-            if (!faq) {
-                throw new ApiError(httpStatus.NOT_FOUND, "FAQ not found");
-            }
+    const duplicate = await Invoice.findOne({
+      invoiceNo: req.body.invoiceNo,
+      _id: { $ne: id },
+    });
+    if (duplicate) {
+      throw new ApiError(400, 'Invoice number already exists');
+    }
 
-            // res.status(httpStatus.OK).send({
-            //     status: "success",
-            //     code: httpStatus.OK,
-            //     data: {
-            //         _id: faq._id,
-            //         title: faq.title,
-            //         description: faq.description,
-            //         createdAt: faq.createdAt,
-            //         updatedAt: faq.updatedAt,
-            //     },
-            // });
-            res.send({
-                success: true,
-                message: "Invoice updated successfully!",
-                faq
-            });
-        } catch (error) {
-            if (!(error instanceof ApiError)) {
-                throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, "Error updating FAQ");
-            }
-            throw error;
-        }
-    },
+    Object.assign(invoice, req.body);
+    await invoice.save();
+
+    res.json({
+      success: true,
+      message: 'Invoice updated successfully',
+      data: invoice,
+    });
+  },
 };
 
-// GET all FAQ
-const getAllInvoice = {
+const getAllInvoices = {
+  handler: async (req, res) => {
+    const invoices = await Invoice.find().sort({ createdAt: -1 });
 
-    handler: async (req, res) => {
-        try {
-            const faq = await Invoice.find();
-
-            if (!faq || faq.length === 0) {
-                throw new ApiError(httpStatus.NOT_FOUND, "No FAQ found");
-            }
-
-            res.status(httpStatus.OK).send(faq);
-        } catch (error) {
-            // If it's not already an ApiError, wrap it
-            if (!(error instanceof ApiError)) {
-                throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, "Error fetching FAQ");
-            }
-            throw error;
-        }
-    },
+    res.json({
+      success: true,
+      data: invoices,
+    });
+  },
 };
 
-// ✅ GET FAQ by ID
-const getFaqById = {
-    handler: async (req, res) => {
-        try {
-            const { _id } = req.params;
-            const faq = await Invoice.findById(_id);
+const getInvoiceById = {
+  validation: {
+    params: Joi.object().keys({ id: Joi.string().required() }),
+  },
 
-            if (!faq) {
-                throw new ApiError(httpStatus.NOT_FOUND, "FAQ not found");
-            }
+  handler: async (req, res) => {
+    const invoice = await Invoice.findById(req.params.id);
+    if (!invoice) throw new ApiError(404, 'Invoice not found');
 
-            res.status(httpStatus.OK).send(faq);
-        } catch (error) {
-            if (!(error instanceof ApiError)) {
-                throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, "Error fetching FAQ by ID");
-            }
-            throw error;
-        }
-    },
+    res.json({
+      success: true,
+      data: invoice,
+    });
+  },
 };
 
-// ✅ DELETE FAQ
-const deleteFaq = {
-    handler: async (req, res) => {
-        try {
-            const { _id } = req.params;
-            const faq = await Invoice.findByIdAndDelete(_id);
+const deleteInvoice = {
+  validation: {
+    params: Joi.object().keys({ id: Joi.string().required() }),
+  },
 
-            if (!faq) {
-                throw new ApiError(httpStatus.NOT_FOUND, "FAQ not found");
-            }
+  handler: async (req, res) => {
+    const invoice = await Invoice.findById(req.params.id);
+    if (!invoice) throw new ApiError(404, 'Invoice not found');
 
-            // res.status(httpStatus.OK).send({ message: "FAQ deleted successfully" });
-            res.status(httpStatus.OK).send({
-                status: true,
-                code: httpStatus.OK,
-                message: "FAQ deleted successfully",
-            });
-        } catch (error) {
-            if (!(error instanceof ApiError)) {
-                throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, "Error deleting FAQ");
-            }
-            throw error;
-        }
-    },
+    await invoice.deleteOne();
+
+    res.json({
+      success: true,
+      message: 'Invoice deleted successfully',
+    });
+  },
 };
 
 module.exports = {
     createInvoice,
-    getAllInvoice,
-    getFaqById,
-    updateFaq,
-    deleteFaq,
+    updateInvoice,
+    getAllInvoices,
+    getInvoiceById,
+    deleteInvoice
 };

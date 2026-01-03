@@ -1,8 +1,10 @@
 const express = require('express');
 const authRoute = require('./auth.route');
 const categoryRoute = require('./category.route');
-const questionRoute = require('./question.route');
+const customerRoute = require('./customer.route');
 const contactusRoute = require('./contactUs.route')
+const estimateRoute = require('./estimate.route')
+const inventoryRoute = require('./inventory.route')
 const invoiceRoute = require('./invoice.route')
 
 const router = express.Router();
@@ -17,8 +19,16 @@ const defaultRoutes = [
     route: categoryRoute,
   },
   {
-    path: '/question',
-    route: questionRoute,
+    path: '/customer',
+    route: customerRoute,
+  },
+  {
+    path: '/inventory',
+    route: inventoryRoute,
+  },
+  {
+    path: '/invoice',
+    route: invoiceRoute,
   },
   {
     path: '/contactus',
@@ -26,7 +36,7 @@ const defaultRoutes = [
   },
   {
     path: '/estimate',
-    route: invoiceRoute
+    route: estimateRoute
   }
 ];
 
