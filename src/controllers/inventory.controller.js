@@ -3,6 +3,7 @@ const ApiError = require('../utils/ApiError');
 const Joi = require('joi');
 const { Inventory } = require('../models');
 const { handlePagination } = require('../utils/helper');
+const XLSX = require('xlsx');
 
 const createInventory = {
   validation: {
@@ -10,6 +11,7 @@ const createInventory = {
       name: Joi.string().trim().required(),
       unit: Joi.string().trim().required(),
       hsn: Joi.string().trim().required(),
+      purchase: Joi.string().trim().required(),
     }),
   },
 
@@ -58,6 +60,22 @@ const getAllInventory = {
     }
 }
 
+const getInventoryById = {
+  validation: {
+    params: Joi.object().keys({ id: Joi.string().required() }),
+  },
+
+  handler: async (req, res) => {
+    const inventory = await Inventory.findById(req.params.id);
+    if (!inventory) throw new ApiError(404, 'Inventory not found');
+
+    res.json({
+      success: true,
+      data: inventory,
+    });
+  },
+};
+
 const updateInventory = {
   validation: {
     params: Joi.object().keys({
@@ -67,6 +85,7 @@ const updateInventory = {
       name: Joi.string().trim().required(),
       unit: Joi.string().trim().required(),
       hsn: Joi.string().trim().required(),
+      purchase: Joi.string().trim().required(),
     }),
   },
 
@@ -133,9 +152,75 @@ const deleteInventory = {
     }
 }
 
+const uploadInventoryExcel = {
+  handler: async (req, res) => {
+    try {
+      if (!req.file) {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Excel file is required');
+      }
+
+      // 📄 Read Excel
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet);
+
+      if (!rows.length) {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Excel file is empty');
+      }
+
+      const insertData = [];
+      const skippedData = [];
+
+      for (const row of rows) {
+        if (!row.name || !row.unit || !row.hsn || !row.purchase) {
+          skippedData.push({ row, reason: 'Missing required fields' });
+          continue;
+        }
+
+        // 🔍 Duplicate name check (case-insensitive)
+        const exists = await Inventory.findOne({
+          name: { $regex: `^${row.name}$`, $options: 'i' },
+        });
+
+        if (exists) {
+          skippedData.push({ row, reason: 'Inventory name already exists' });
+          continue;
+        }
+
+        insertData.push({
+          name: row.name,
+          unit: row.unit,
+          hsn: row.hsn,
+          purchase: row.purchase,
+        });
+      }
+
+      // ✅ Bulk Insert
+      const savedData = await Inventory.insertMany(insertData);
+
+      return res.status(httpStatus.CREATED).json({
+        success: true,
+        message: 'Excel inventory upload completed',
+        totalInserted: savedData.length,
+        totalSkipped: skippedData.length,
+        skippedData,
+        data: savedData,
+      });
+    } catch (error) {
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || 'Excel upload failed',
+      });
+    }
+  },
+};
+
 module.exports = {
     createInventory,
     getAllInventory,
+    getInventoryById,
     updateInventory,
-    deleteInventory
+    deleteInventory,
+    uploadInventoryExcel
 };

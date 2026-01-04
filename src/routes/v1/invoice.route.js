@@ -6,7 +6,7 @@ const { invoiceController } = require('../../controllers');
 
 const router = express.Router();
 
-router.post('/create', validate(invoiceController.createInvoice.validation), catchAsync(invoiceController.getAllInvoices.handler));
+router.post('/create', validate(invoiceController.createInvoice.validation), catchAsync(invoiceController.createInvoice.handler));
 router.get('/getall', catchAsync(invoiceController.getAllInvoices.handler));
 router.get('/getById/:id', catchAsync(invoiceController.getInvoiceById.handler));
 router.put(
