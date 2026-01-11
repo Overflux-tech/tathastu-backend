@@ -11,6 +11,7 @@ const createInventory = {
       name: Joi.string().trim().required(),
       unit: Joi.string().trim().required(),
       hsn: Joi.string().trim().required(),
+      tax: Joi.string().trim().required(),
       purchase: Joi.string().trim().required(),
     }),
   },
@@ -85,6 +86,7 @@ const updateInventory = {
       name: Joi.string().trim().required(),
       unit: Joi.string().trim().required(),
       hsn: Joi.string().trim().required(),
+      tax: Joi.string().trim().required(),
       purchase: Joi.string().trim().required(),
     }),
   },
@@ -173,7 +175,7 @@ const uploadInventoryExcel = {
       const skippedData = [];
 
       for (const row of rows) {
-        if (!row.name || !row.unit || !row.hsn || !row.purchase) {
+        if (!row.name || !row.unit || !row.hsn || !row.tax || !row.purchase) {
           skippedData.push({ row, reason: 'Missing required fields' });
           continue;
         }
@@ -192,6 +194,7 @@ const uploadInventoryExcel = {
           name: row.name,
           unit: row.unit,
           hsn: row.hsn,
+          tax: row.tax,
           purchase: row.purchase,
         });
       }

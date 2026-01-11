@@ -3,7 +3,11 @@ const { toJSON } = require('./plugins');
 
 const invoiceItemSchema = mongoose.Schema(
   {
-    item: { type: String, required: true, trim: true },
+    item: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Inventory',
+      required: true,
+    },
     description: { type: String, trim: true },
     qty: { type: Number, required: true, min: 1 },
     rate: { type: Number, required: true, min: 0 },
@@ -20,7 +24,11 @@ const invoiceItemSchema = mongoose.Schema(
 
 const invoiceSchema = mongoose.Schema(
   {
-    customerName: { type: String, required: true, trim: true },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Customer',
+      required: true,
+    },
     invoiceNo: { type: String, required: true, unique: true },
     orderNo: { type: String, trim: true },
     date: { type: Date, required: true },

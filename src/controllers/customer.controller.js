@@ -9,7 +9,7 @@ const createCustomer = {
     body: Joi.object().keys({
       name: Joi.string().trim().required(),
       mobile: Joi.string().trim().required(),
-      email: Joi.string().email().required(),
+      email: Joi.string().allow('', null),
       gst_number: Joi.string().allow('', null),
       address: Joi.string().trim().required(),
       city: Joi.string().trim().required(),
@@ -101,7 +101,7 @@ const updateCustomer = {
     body: Joi.object().keys({
       name: Joi.string().trim().required(),
       mobile: Joi.string().trim().required(),
-      email: Joi.string().email().required(),
+      email: Joi.string().email().allow(null, ''),
       gst_number: Joi.string().allow('', null),
       address: Joi.string().trim().required(),
       city: Joi.string().trim().required(),

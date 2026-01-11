@@ -4,9 +4,9 @@ const { toJSON } = require('./plugins');
 const estimateItemSchema = mongoose.Schema(
   {
     item: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Inventory',
       required: true,
-      trim: true,
     },
     description: {
       type: String,
@@ -52,10 +52,10 @@ const estimateItemSchema = mongoose.Schema(
 
 const estimateSchema = mongoose.Schema(
   {
-    customerName: {
-      type: String,
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Customer',
       required: true,
-      trim: true,
     },
     estimateNumber: {
       type: String,

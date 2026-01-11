@@ -16,6 +16,7 @@ router.put(
 );
 
 router.delete('/delete/:_id', catchAsync(invoiceController.deleteInvoice.handler));
+router.get('/last-invoice-number', catchAsync(invoiceController.getLastInvoiceNumber));
 
 module.exports = router;
 

@@ -19,6 +19,11 @@ const inventorySchema = mongoose.Schema(
       required: true,
       trim: true,
     },
+    tax: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     purchase:{
       type: String,
       required: true,
